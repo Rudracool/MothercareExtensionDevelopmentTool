@@ -9,7 +9,8 @@ define(
 		'jQuery',
 		'Utils',
 		'Profile.Model',
-		'Item.KeyMapping'
+		'Item.KeyMapping',
+		'Session'
 	]
 ,   function (
 		ReorderExtensionsListHeaderPdfView,
@@ -19,7 +20,8 @@ define(
 		jQuery,
 		Utils,
 		ProfileModel,
-		ItemKeyMapping
+		ItemKeyMapping,
+		Session
 	)
 {
 	'use strict';
@@ -27,8 +29,6 @@ define(
 	return  {
 		mountToApp: function mountToApp (container)
 		{
-			// using the 'Layout' component we add a new child view inside the 'Header' existing view 
-			// (there will be a DOM element with the HTML attribute data-view="Header.Logo")
 			// more documentation of the Extensibility API in
 			// https://system.netsuite.com/help/helpcenter/en_US/APIs/SuiteCommerce/Extensibility/Frontend/index.html
 			
@@ -37,13 +37,10 @@ define(
 			obj['click [data-action="download_file_inExt"]'] = 'showDownload',
 				ListHeaderView.prototype.events = obj;
 
-
-				// get the data in suitescript service controller
 				var CustomData = Utils.getAbsoluteUrl(getExtensionAssetsPath("services/ReorderExtensionsListHeaderPdf.Service.ss"))
 			    jQuery.get(CustomData).then((value) => {
-					container.htmlFile = value;
-				});
-				console.log(Utils);
+					container.htmlFile = value
+				})
 			
 
 
@@ -51,6 +48,7 @@ define(
 			_.extend(ListHeaderView.prototype, {
 				//Initialize extended
 				showDownload: function showDownload(e) {
+					
 					var self = this;
 					
 					e.preventDefault();
@@ -62,7 +60,6 @@ define(
 					
                         // get the data from collection and create a object 
 						var any = this.collection.customAlldata;
-
 					
 						_.map(any, function (value) {
 							var some=value.item.matrix_parent;
@@ -120,6 +117,7 @@ define(
 				},
 				generateCsvinExtension: function generatePdfinExtension(CsvData) {
 					// create a csv as per our Requirement
+					
 					var headdingRows = Object.keys(CsvData[0]);
 					var csv = '';
 					headdingRows = headdingRows.join(',');
@@ -136,6 +134,7 @@ define(
 
 				},
 				generatePdfinExtension: function generatePdfinExtension(PdfData, Price) {
+					var currencyFormater=this.customExtProfileModel.get('currency').symbol;
 					var selectedFilterData=this.selectedFilter.itemValue;
 					var CustomizedSelectedData=selectedFilterData.split("T");
 					var fromInCustomizedSelectedData=CustomizedSelectedData[0];
@@ -145,7 +144,6 @@ define(
 					if(_.isEmpty(this.selectedRange)){
 						EmptyObjDate.From=fromInCustomizedSelectedData;
 						EmptyObjDate.to=toInCustomizedSelectedData;
-
 						
 					}else{
 						if(!_.isEmpty(this.selectedRange.from)){
@@ -186,12 +184,23 @@ define(
 					// adding the price
 					const reducer = (accumulator, curr) => accumulator + curr;
 					var totalPrice = Price.reduce(reducer);
+					var roundFigure=Math.round(totalPrice* 100) / 100;
+					var resulatant=roundFigure.toString().split('.');
+					
 					// relpace the data in html file
+					// var getHtmlData = this.collection.htmlFile;
 					var getHtmlData = container.htmlFile.htmlTextFile;
 					var replaceData = getHtmlData.replace("headingContent1", headingText);
 					replaceData = replaceData.replace("Customername", Customername);
 					replaceData = replaceData.replace("tableData", tr);
-					replaceData = replaceData.replace("totalPriceAddition", totalPrice);
+					// check the cuntry currency
+				
+					if(resulatant.length>1){
+						replaceData = replaceData.replace("totalPriceAddition", roundFigure);
+					}else{
+						replaceData = replaceData.replace("totalPriceAddition", roundFigure+".00");
+					}
+					replaceData = replaceData.replace("currencyForm", currencyFormater);
 					replaceData = replaceData.replace("theadRow", theadRow);
 					replaceData = replaceData.replace("headingContent2", headingText);
 					replaceData = replaceData.replace("DateFormat.fromDate", EmptyObjDate.From);
